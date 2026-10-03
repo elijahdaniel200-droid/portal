@@ -1,0 +1,2 @@
+src/app/teacher/attendance/page.tsx(265,5): error TS1005: ')' expected.
+src/app/teacher/attendance/page.tsx(266,3): error TS1109: Expression expected.

@@ -1,0 +1,143 @@
+@import "tailwindcss";
+
+/* === Design System === */
+:root {
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+
+  /* Brand Palette — Deep Navy + Gold */
+  --navy-950: #05111f;
+  --navy-900: #0a1929;
+  --navy-800: #0d2137;
+  --navy-700: #113050;
+  --navy-600: #1a4a7a;
+  --navy-500: #1e5fa0;
+  --gold-500:  #f5a623;
+  --gold-400:  #f7b844;
+  --gold-300:  #fcd16e;
+
+  --bg: #f0f4f8;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+}
+
+/* === Global Reset === */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { font-family: var(--font-sans); }
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+}
+
+/* === Scrollbar === */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* === Animated gradient backgrounds === */
+.hero-gradient {
+  background: linear-gradient(135deg, #05111f 0%, #0d2137 40%, #113050 70%, #1a1a2e 100%);
+}
+
+.gold-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(245,166,35,0.15), transparent);
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+/* === Glass cards === */
+.glass {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.glass-light {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+/* === Stat card hover === */
+.stat-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px -8px rgba(0,0,0,0.15);
+}
+
+/* === Sidebar nav link transition === */
+.nav-link {
+  position: relative;
+  transition: all 0.2s ease;
+}
+.nav-link.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  border-radius: 0 4px 4px 0;
+  background: var(--gold-400);
+}
+
+/* === Badge pulse for alerts === */
+.badge-pulse {
+  animation: pulse-ring 2s ease-in-out infinite;
+}
+@keyframes pulse-ring {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+
+/* === Page fade-in === */
+.page-enter {
+  animation: fadeUp 0.35s ease forwards;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* === Table row hover === */
+.table-row-hover:hover {
+  background: rgba(30, 95, 160, 0.04);
+}
+
+/* === Input focus ring === */
+.input-field {
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.input-field:focus {
+  outline: none;
+  border-color: #1e5fa0;
+  box-shadow: 0 0 0 3px rgba(30, 95, 160, 0.12);
+}
+
+/* === Button press effect === */
+.btn-primary {
+  transition: all 0.15s ease;
+}
+.btn-primary:hover  { filter: brightness(1.08); }
+.btn-primary:active { transform: scale(0.97); }
+
+/* === Floating orbs decoration === */
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+}

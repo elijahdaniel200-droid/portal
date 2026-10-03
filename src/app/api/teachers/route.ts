@@ -1,0 +1,62 @@
+import { NextResponse } from 'next/server';
+import { createAdminClient } from '@/lib/supabase-admin';
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const { first_name, last_name, email, password, department, hire_date } = body;
+
+    if (!first_name || !last_name || !email || !password) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    const supabase = createAdminClient();
+
+    // 1. Create auth user
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { first_name, last_name, role: 'TEACHER' },
+    });
+
+    if (authError) return NextResponse.json({ error: authError.message }, { status: 400 });
+
+    const userId = authData.user.id;
+
+    // 2. Upsert profile
+    const { error: profileError } = await supabase.from('profiles').upsert({
+      id: userId, email, first_name, last_name, role: 'TEACHER',
+    });
+    if (profileError) return NextResponse.json({ error: profileError.message }, { status: 400 });
+
+    // 3. Create teacher record
+    const { error: teacherError } = await supabase.from('teachers').insert({
+      id: userId,
+      department: department || null,
+      hire_date: hire_date || null,
+    });
+    if (teacherError) return NextResponse.json({ error: teacherError.message }, { status: 400 });
+
+    return NextResponse.json({ success: true, userId, message: `Teacher ${first_name} ${last_name} created!` });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function GET() {
+  try {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from('teachers')
+      .select(`
+        id, department, hire_date,
+        profiles (id, first_name, last_name, email, created_at)
+      `);
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ data });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
