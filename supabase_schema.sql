@@ -1,9 +1,16 @@
 -- Custom Types
-CREATE TYPE user_role AS ENUM ('ADMIN', 'TEACHER', 'STUDENT');
-CREATE TYPE fee_status AS ENUM ('PENDING', 'PAID', 'OVERDUE');
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+        CREATE TYPE user_role AS ENUM ('ADMIN', 'TEACHER', 'STUDENT');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'fee_status') THEN
+        CREATE TYPE fee_status AS ENUM ('PENDING', 'PAID', 'OVERDUE');
+    END IF;
+END $$;
 
 -- Profiles Table (Extends Supabase auth.users)
-CREATE TABLE profiles (
+CREATE TABLE IF NOT EXISTS profiles (
   id UUID REFERENCES auth.users(id) PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
   first_name TEXT NOT NULL,
@@ -13,7 +20,7 @@ CREATE TABLE profiles (
 );
 
 -- Students Table (Role-specific details)
-CREATE TABLE students (
+CREATE TABLE IF NOT EXISTS students (
   id UUID REFERENCES profiles(id) PRIMARY KEY,
   enrollment_number TEXT UNIQUE NOT NULL,
   date_of_birth DATE,
@@ -22,14 +29,14 @@ CREATE TABLE students (
 );
 
 -- Teachers Table (Role-specific details)
-CREATE TABLE teachers (
+CREATE TABLE IF NOT EXISTS teachers (
   id UUID REFERENCES profiles(id) PRIMARY KEY,
   department TEXT,
   hire_date DATE
 );
 
 -- Academics
-CREATE TABLE academic_terms (
+CREATE TABLE IF NOT EXISTS academic_terms (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
   start_date DATE,
@@ -37,19 +44,19 @@ CREATE TABLE academic_terms (
   is_active BOOLEAN DEFAULT false
 );
 
-CREATE TABLE classes (
+CREATE TABLE IF NOT EXISTS classes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
   form_teacher_id UUID REFERENCES teachers(id)
 );
 
-CREATE TABLE subjects (
+CREATE TABLE IF NOT EXISTS subjects (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
   code TEXT UNIQUE NOT NULL
 );
 
-CREATE TABLE class_subjects (
+CREATE TABLE IF NOT EXISTS class_subjects (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   class_id UUID REFERENCES classes(id),
   subject_id UUID REFERENCES subjects(id),
@@ -57,7 +64,7 @@ CREATE TABLE class_subjects (
 );
 
 -- Grading & Attendance
-CREATE TABLE grades (
+CREATE TABLE IF NOT EXISTS grades (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   student_id UUID REFERENCES students(id),
   class_subject_id UUID REFERENCES class_subjects(id),
@@ -67,7 +74,7 @@ CREATE TABLE grades (
   remarks TEXT
 );
 
-CREATE TABLE attendance (
+CREATE TABLE IF NOT EXISTS attendance (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   student_id UUID REFERENCES students(id),
   class_id UUID REFERENCES classes(id),
@@ -76,7 +83,7 @@ CREATE TABLE attendance (
 );
 
 -- Fees
-CREATE TABLE invoices (
+CREATE TABLE IF NOT EXISTS invoices (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   student_id UUID REFERENCES students(id),
   term_id UUID REFERENCES academic_terms(id),
@@ -86,7 +93,7 @@ CREATE TABLE invoices (
   status fee_status DEFAULT 'PENDING'
 );
 
-CREATE TABLE transactions (
+CREATE TABLE IF NOT EXISTS transactions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   invoice_id UUID REFERENCES invoices(id),
   reference_code TEXT UNIQUE NOT NULL,
