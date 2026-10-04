@@ -42,37 +42,58 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex" style={{ background: '#f8fafc' }}>
       {/* Left side - Decorative */}
-      <div className="hidden lg:flex w-1/2 flex-col justify-between p-12 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}>
-        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-blue-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
-        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-amber-500/10 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4"></div>
+      <div className="hidden lg:flex w-1/2 flex-col justify-between p-12 relative overflow-hidden bg-slate-900">
         
-        <div className="relative z-10 flex items-center space-x-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg">
-            <GraduationCap className="w-6 h-6 text-white" />
+        {/* Background Image of Students and Teachers */}
+        <div className="absolute inset-0 z-0">
+          <img src="/signup-bg.jpg" alt="Students and Teachers" className="w-full h-full object-cover opacity-40 mix-blend-overlay" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-slate-900/40" />
+        </div>
+        
+        <div className="relative z-10 flex items-center space-x-4 mb-8">
+          <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center shadow-lg overflow-hidden border-2 border-amber-400">
+            <img src="/eduportal-logo.jpg" alt="EduPortal Logo" className="w-full h-full object-cover" />
           </div>
-          <span className="text-2xl font-black text-white tracking-tight">EduPortal</span>
+          <span className="text-4xl font-black text-white tracking-tight">EduPortal</span>
         </div>
 
-        <div className="relative z-10 max-w-md">
-          <h1 className="text-4xl font-bold text-white mb-6 leading-tight">Join our learning community today.</h1>
-          <p className="text-slate-400 text-lg leading-relaxed">
-            Create an account to access the official School Management System as a Student, Teacher, or Administrator.
-          </p>
+        <div className="relative z-10 max-w-lg space-y-6">
+          <h1 className="text-5xl font-extrabold text-white leading-tight">Join our learning community today.</h1>
+          
+          <div className="space-y-4">
+            <p className="text-slate-300 text-lg leading-relaxed">
+              Experience the future of education management. Whether you're a student checking your latest grades, or a teacher managing your daily classes, EduPortal provides a seamless, intuitive experience.
+            </p>
+            <ul className="text-slate-300 text-md space-y-3 mt-4">
+              <li className="flex items-center space-x-3">
+                <span className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 text-sm">✓</span>
+                <span>Real-time academic performance tracking</span>
+              </li>
+              <li className="flex items-center space-x-3">
+                <span className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 text-sm">✓</span>
+                <span>Simplified attendance and gradebook tools</span>
+              </li>
+              <li className="flex items-center space-x-3">
+                <span className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 text-sm">✓</span>
+                <span>Centralized communication hub</span>
+              </li>
+            </ul>
+          </div>
         </div>
 
-        <div className="relative z-10 flex items-center space-x-4 text-sm text-slate-500">
+        <div className="relative z-10 flex items-center space-x-4 text-sm text-slate-400">
           <span>© 2026 EduPortal Systems</span>
-          <div className="w-1 h-1 rounded-full bg-slate-700"></div>
-          <a href="#" className="hover:text-slate-300 transition-colors">Privacy Policy</a>
+          <div className="w-1 h-1 rounded-full bg-slate-600"></div>
+          <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
         </div>
       </div>
 
       {/* Right side - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 relative z-10 bg-white">
         <div className="w-full max-w-md">
           <div className="lg:hidden flex items-center space-x-3 mb-10">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center shadow-lg">
-              <GraduationCap className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-lg overflow-hidden border-2 border-amber-400">
+              <img src="/eduportal-logo.jpg" alt="EduPortal Logo" className="w-full h-full object-cover" />
             </div>
             <span className="text-2xl font-black text-slate-900 tracking-tight">EduPortal</span>
           </div>
@@ -83,7 +104,7 @@ export default function SignupPage() {
           </div>
 
           {error && (
-            <div className="mb-6 flex items-start space-x-3 p-4 bg-red-50 border border-red-100 rounded-xl animate-shake">
+            <div className="mb-6 flex items-start space-x-3 p-4 bg-red-50 border border-red-100 rounded-xl">
               <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
               <p className="text-sm text-red-600 font-medium">{error}</p>
             </div>

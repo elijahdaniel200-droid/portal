@@ -84,8 +84,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md relative z-10">
         {/* School Logo / Crest */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 shadow-2xl shadow-amber-500/30 mb-4">
-            <GraduationCap className="w-10 h-10 text-white" />
+          <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-white shadow-2xl shadow-amber-500/30 mb-4 overflow-hidden border-2 border-amber-400">
+            <img src="/eduportal-logo.jpg" alt="EduPortal Logo" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-3xl font-bold text-white tracking-tight">EduPortal</h1>
           <p className="text-blue-200/70 text-sm mt-1 tracking-wider uppercase font-medium">School Management System</p>

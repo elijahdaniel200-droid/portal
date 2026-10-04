@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from 'react';
 import { Users, FileEdit, CalendarDays, TrendingUp, ArrowUpRight, ArrowRight } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useRouter } from 'next/navigation';
@@ -21,6 +22,31 @@ const myClasses = [
 export default function TeacherDashboard() {
   const { profile } = useAuthStore();
   const router = useRouter();
+
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (profile?.id) {
+      fetch(`/api/teacher-dashboard?teacher_id=${profile.id}`)
+        .then(res => res.json())
+        .then(data => {
+          setDashboardData(data);
+          setLoading(false);
+        });
+    }
+  }, [profile?.id]);
+
+  const dynamicStats = [
+    { title: 'Students Assigned', value: dashboardData?.stats?.totalStudents?.toString() || '0', sub: `Across ${dashboardData?.stats?.totalClasses || 0} classes`, icon: Users, from: '#3b82f6', to: '#1d4ed8', href: '/teacher/classes' },
+    { title: 'Subjects Teaching', value: dashboardData?.stats?.totalSubjects?.toString() || '0', sub: 'Total Subjects', icon: FileEdit, from: '#10b981', to: '#059669', href: '/teacher/gradebook' },
+    { title: 'Classes Today', value: '5', sub: 'Next at 09:00 AM', icon: CalendarDays, from: '#f59e0b', to: '#d97706', href: '/teacher/classes' },
+    { title: 'Class Average', value: 'B+', sub: 'Up from last term', icon: TrendingUp, from: '#8b5cf6', to: '#6d28d9', href: '/teacher/gradebook' },
+  ];
+
+  if (loading) {
+    return <div className="flex justify-center p-10"><div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" /></div>;
+  }
 
   return (
     <div className="space-y-8">
@@ -50,7 +76,7 @@ export default function TeacherDashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {stats.map((stat, i) => {
+        {dynamicStats.map((stat, i) => {
           const Icon = stat.icon;
           return (
             <button 
@@ -87,31 +113,35 @@ export default function TeacherDashboard() {
             </button>
           </div>
           <div className="divide-y divide-slate-50">
-            {myClasses.map((cls, i) => (
-              <div key={i} className="table-row-hover px-6 py-4 flex items-center space-x-4">
-                <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center font-bold text-violet-700 text-xs flex-shrink-0">
-                  {cls.id}
+            {dashboardData?.assignedClasses?.length === 0 ? (
+              <div className="p-6 text-center text-slate-500">No classes assigned yet.</div>
+            ) : (
+              dashboardData?.assignedClasses?.map((cls: any, i: number) => (
+                <div key={i} className="table-row-hover px-6 py-4 flex items-center space-x-4">
+                  <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center font-bold text-violet-700 text-xs flex-shrink-0">
+                    {cls.name?.substring(0,3)}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-slate-900 text-sm">{cls.name}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Subjects: {cls.subjects?.join(', ') || 'N/A'}</p>
+                  </div>
+                  <div className="flex space-x-2 flex-shrink-0">
+                    <button 
+                      onClick={() => router.push('/teacher/attendance')}
+                      className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                    >
+                      Attendance
+                    </button>
+                    <button 
+                      onClick={() => router.push('/teacher/gradebook')}
+                      className="px-3 py-1.5 text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 rounded-lg transition-colors"
+                    >
+                      Records
+                    </button>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-slate-900 text-sm">{cls.subject}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{cls.time} &middot; {cls.students} students &middot; Avg: <span className="font-bold text-violet-600">{cls.avgGrade}</span></p>
-                </div>
-                <div className="flex space-x-2 flex-shrink-0">
-                  <button 
-                    onClick={() => router.push('/teacher/attendance')}
-                    className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-                  >
-                    Attendance
-                  </button>
-                  <button 
-                    onClick={() => router.push('/teacher/gradebook')}
-                    className="px-3 py-1.5 text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 rounded-lg transition-colors"
-                  >
-                    Records
-                  </button>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
