@@ -28,7 +28,13 @@ export async function POST(req: Request) {
       id: userId, email, first_name, last_name, role,
     });
     
-    if (profileError) return NextResponse.json({ error: profileError.message }, { status: 400 });
+    if (profileError) {
+      console.error("Profile upsert error:", profileError);
+      if (profileError.code === 'PGRST205' || profileError.message.includes('schema cache')) {
+         throw new Error("Database not initialized! Please run the supabase_schema.sql script in your Supabase SQL Editor.");
+      }
+      return NextResponse.json({ error: profileError.message }, { status: 400 });
+    }
 
     // 3. Create role-specific record
     if (role === 'STUDENT') {
@@ -42,6 +48,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, message: 'Account created successfully!' });
   } catch (err: any) {
+    console.error("Signup error:", err);
+    // Specifically catch the "table not found" error to give a helpful message
+    if (err.code === 'PGRST205' || (err.message && err.message.includes('schema cache'))) {
+      return NextResponse.json({ 
+        error: 'Database not initialized! Please run the supabase_schema.sql script in your Supabase SQL Editor.' 
+      }, { status: 500 });
+    }
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
