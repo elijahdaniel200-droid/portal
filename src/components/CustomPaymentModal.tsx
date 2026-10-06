@@ -34,6 +34,8 @@ const FEE_TYPES = [
 export default function CustomPaymentModal({ isOpen, onClose, email, studentId, onSuccess }: Props) {
   const [classLevel, setClassLevel] = useState<string>('');
   const [feeType, setFeeType] = useState<string>('tuition');
+  const [academicTerm, setAcademicTerm] = useState<string>('First Term');
+  const [isInstallment, setIsInstallment] = useState<boolean>(false);
   const [amount, setAmount] = useState<string>('');
   const [customDescription, setCustomDescription] = useState<string>('');
 
@@ -41,6 +43,11 @@ export default function CustomPaymentModal({ isOpen, onClose, email, studentId, 
   useEffect(() => {
     const selectedFee = FEE_TYPES.find(f => f.id === feeType);
     if (!selectedFee) return;
+
+    if (isInstallment && selectedFee.id === 'tuition') {
+      // Don't auto-override if they are typing an installment
+      return;
+    }
 
     if (selectedFee.isFixedByClass) {
       if (classLevel) {
@@ -57,15 +64,21 @@ export default function CustomPaymentModal({ isOpen, onClose, email, studentId, 
         setAmount('');
       }
     }
-  }, [feeType, classLevel]);
+  }, [feeType, classLevel, isInstallment]);
 
   const numericAmount = parseFloat(amount);
   const selectedFee = FEE_TYPES.find(f => f.id === feeType);
   const isCustomFee = selectedFee?.id === 'custom';
   
+  let baseDescription = selectedFee?.name || 'School Payment';
+  if (selectedFee?.id === 'tuition') {
+    baseDescription = `${baseDescription} - ${academicTerm}`;
+    if (isInstallment) baseDescription += ' (Part Payment)';
+  }
+
   const finalDescription = isCustomFee 
     ? (customDescription.trim() || 'Custom Payment') 
-    : (selectedFee?.name || 'School Payment');
+    : baseDescription;
 
   const isValid = !isNaN(numericAmount) && numericAmount > 0 && classLevel !== '';
 
@@ -112,7 +125,10 @@ export default function CustomPaymentModal({ isOpen, onClose, email, studentId, 
           <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Payment For</label>
           <select 
             value={feeType}
-            onChange={(e) => setFeeType(e.target.value)}
+            onChange={(e) => {
+              setFeeType(e.target.value);
+              if (e.target.value !== 'tuition') setIsInstallment(false);
+            }}
             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
           >
             {FEE_TYPES.map(f => (
@@ -120,6 +136,34 @@ export default function CustomPaymentModal({ isOpen, onClose, email, studentId, 
             ))}
           </select>
         </div>
+
+        {feeType === 'tuition' && (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Academic Term</label>
+              <select 
+                value={academicTerm}
+                onChange={(e) => setAcademicTerm(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+              >
+                <option value="First Term">First Term</option>
+                <option value="Second Term">Second Term</option>
+                <option value="Third Term">Third Term</option>
+              </select>
+            </div>
+            <div className="flex items-end pb-3">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input 
+                  type="checkbox"
+                  checked={isInstallment}
+                  onChange={(e) => setIsInstallment(e.target.checked)}
+                  className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-bold text-slate-700">Part Payment</span>
+              </label>
+            </div>
+          </div>
+        )}
 
         {isCustomFee && (
           <div>
@@ -142,13 +186,14 @@ export default function CustomPaymentModal({ isOpen, onClose, email, studentId, 
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              disabled={!isCustomFee}
-              className={`w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-lg font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all ${!isCustomFee ? 'opacity-80 bg-slate-100' : ''}`}
+              disabled={!isCustomFee && !isInstallment}
+              className={`w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-lg font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all ${(!isCustomFee && !isInstallment) ? 'opacity-80 bg-slate-100' : ''}`}
               placeholder="0.00"
               min="100"
             />
           </div>
-          {!isCustomFee && <p className="text-xs text-blue-600 font-medium mt-2">Amount is fixed automatically.</p>}
+          {(!isCustomFee && !isInstallment) && <p className="text-xs text-blue-600 font-medium mt-2">Amount is fixed automatically.</p>}
+          {isInstallment && <p className="text-xs text-amber-600 font-medium mt-2">Enter the part payment amount.</p>}
         </div>
 
         <div className="pt-4 border-t border-slate-100 flex justify-end space-x-3">

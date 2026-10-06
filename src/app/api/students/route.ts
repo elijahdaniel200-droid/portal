@@ -3,6 +3,14 @@ import { createAdminClient } from '@/lib/supabase-admin';
 
 export async function POST(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const adminId = searchParams.get('adminId');
+    if (!adminId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const supabase = createAdminClient();
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', adminId).single();
+    if (profile?.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
     const body = await req.json();
     const {
       first_name, last_name, email, password,
@@ -13,8 +21,6 @@ export async function POST(req: Request) {
     if (!first_name || !last_name || !email || !password || !enrollment_number) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
-
-    const supabase = createAdminClient();
 
     // 1. Create auth user
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
@@ -44,15 +50,33 @@ export async function POST(req: Request) {
     });
     if (studentError) return NextResponse.json({ error: studentError.message }, { status: 400 });
 
+    await import('@/lib/audit').then(m => m.logAuditAction(adminId, 'CREATE_STUDENT', { student_id: userId, enrollment_number }));
+
     return NextResponse.json({ success: true, userId, message: `Student ${first_name} ${last_name} created!` });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const adminId = searchParams.get('adminId');
+    const teacherId = searchParams.get('teacherId');
+    
+    if (!adminId && !teacherId) {
+       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const supabase = createAdminClient();
+    
+    // Check role
+    const checkingId = adminId || teacherId;
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', checkingId).single();
+    if (profile?.role === 'STUDENT' || !profile) {
+       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const studentsPromise = supabase
       .from('students')
       .select(`

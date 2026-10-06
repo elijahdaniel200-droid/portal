@@ -26,7 +26,7 @@ export async function GET(req: Request) {
     let gradesQuery = supabase
       .from('grades')
       .select(`
-        id, score, grade, remarks, term_id, class_subject_id,
+        id, score, grade, remarks, breakdown, status, term_id, class_subject_id,
         class_subjects (
           id,
           subjects ( name, code ),

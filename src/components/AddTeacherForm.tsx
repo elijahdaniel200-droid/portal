@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { User, Mail, Lock, Briefcase, Calendar, AlertCircle, CheckCircle2, GraduationCap } from 'lucide-react';
+import { useAuthStore } from '@/store/useAuthStore';
 
 interface Props {
   onSuccess: () => void;
@@ -36,7 +37,9 @@ export default function AddTeacherForm({ onSuccess, onCancel }: Props) {
     setSuccess('');
 
     try {
-      const res = await fetch('/api/teachers', {
+      const { profile } = useAuthStore.getState();
+      const adminId = profile?.id;
+      const res = await fetch(`/api/teachers?adminId=${adminId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),

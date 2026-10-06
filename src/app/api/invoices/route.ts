@@ -3,16 +3,26 @@ import { createAdminClient } from '@/lib/supabase-admin';
 
 export async function POST(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const adminId = searchParams.get('adminId');
+    if (!adminId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const supabase = createAdminClient();
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', adminId).single();
+    if (profile?.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
     const { student_id, term_id, amount, description, due_date } = await req.json();
     if (!student_id || !amount || !description) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
-    const supabase = createAdminClient();
     const { data, error } = await supabase.from('invoices').insert({
       student_id, term_id: term_id || null, amount, description,
       due_date: due_date || null, status: 'PENDING',
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+    await import('@/lib/audit').then(m => m.logAuditAction(adminId, 'CREATE_INVOICE', { invoice_id: data.id, student_id, amount }));
+
     return NextResponse.json({ success: true, data });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -22,8 +32,14 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const status = searchParams.get('status');
+    const adminId = searchParams.get('adminId');
+    if (!adminId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const supabase = createAdminClient();
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', adminId).single();
+    if (profile?.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    const status = searchParams.get('status');
 
     let query = supabase
       .from('invoices')

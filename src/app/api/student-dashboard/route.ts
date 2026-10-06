@@ -66,15 +66,44 @@ export async function GET(request: Request) {
       classesCount = 4;
     }
 
-    // 4. Student Data (Rank, Class)
+    // 4. Student Data (Rank, Class, Schedule)
     const { data: student } = await supabase
       .from('students')
-      .select('classes(name)')
+      .select('class_id, classes(name)')
       .eq('id', studentId)
       .single();
 
     const classesData: any = student?.classes;
     const className = classesData?.name || classesData?.[0]?.name || 'Grade 10';
+    const classId = student?.class_id;
+
+    let schedule: any[] = [];
+    if (classId) {
+      const todayDayOfWeek = new Date().getDay(); // 0 (Sun) to 6 (Sat)
+      const { data: timetables } = await supabase
+        .from('timetables')
+        .select('start_time, end_time, room, subjects(name, code), teachers(profiles(first_name, last_name))')
+        .eq('class_id', classId)
+        .eq('day_of_week', todayDayOfWeek)
+        .order('start_time', { ascending: true });
+
+      if (timetables && timetables.length > 0) {
+        const colors = ['bg-blue-500', 'bg-violet-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500'];
+        schedule = timetables.map((t: any, idx: number) => ({
+          time: t.start_time?.substring(0,5) + ' - ' + t.end_time?.substring(0,5),
+          subject: Array.isArray(t.subjects) ? t.subjects[0]?.name : t.subjects?.name,
+          teacher: t.teachers?.profiles 
+            ? (Array.isArray(t.teachers.profiles) 
+                ? `${t.teachers.profiles[0]?.first_name} ${t.teachers.profiles[0]?.last_name}` 
+                : `${t.teachers.profiles.first_name} ${t.teachers.profiles.last_name}`) 
+            : 'TBA',
+          room: t.room || 'TBA',
+          color: colors[idx % colors.length]
+        }));
+      } else {
+        schedule = [];
+      }
+    }
 
     return NextResponse.json({
       pendingFees,
@@ -89,12 +118,7 @@ export async function GET(request: Request) {
         { date: 'Sep 28', title: 'Fee Payment Deadline Reminder', desc: 'Term 1 fees must be paid before Oct 15 to avoid penalties.', type: 'warning' },
         { date: 'Sep 25', title: 'Cultural Day — Nov 5', desc: 'All students are expected to participate in the annual Cultural Day event.', type: 'event' },
       ],
-      schedule: [
-        { time: '08:00 AM', subject: 'Advanced Mathematics', teacher: 'Mr. Adeyemi', room: 'Room 101', color: 'bg-blue-500' },
-        { time: '09:30 AM', subject: 'General Physics', teacher: 'Mrs. Okonkwo', room: 'Lab 2', color: 'bg-violet-500' },
-        { time: '11:00 AM', subject: 'English Literature', teacher: 'Ms. Eze', room: 'Room 204', color: 'bg-emerald-500' },
-        { time: '01:30 PM', subject: 'Further Mathematics', teacher: 'Mr. Bello', room: 'Room 105', color: 'bg-amber-500' },
-      ]
+      schedule
     });
 
   } catch (err: any) {

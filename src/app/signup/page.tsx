@@ -7,7 +7,7 @@ import Link from 'next/link';
 
 export default function SignupPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ first_name: '', last_name: '', email: '', password: '', role: 'STUDENT', enrollment_number: '' });
+  const [form, setForm] = useState({ first_name: '', last_name: '', email: '', password: '', role: 'STUDENT', enrollment_number: '', gender: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -144,19 +144,39 @@ export default function SignupPage() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">I am a...</label>
-              <div className="relative">
-                <Shield className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 z-10" />
-                <select 
-                  className={`${inputClass} appearance-none cursor-pointer`}
-                  value={form.role} 
-                  onChange={set('role')}
-                >
-                  <option value="STUDENT">Student</option>
-                  <option value="TEACHER">Teacher</option>
-                  <option value="ADMIN">Administrator</option>
-                </select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">I am a...</label>
+                <div className="relative">
+                  <Shield className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 z-10" />
+                  <select 
+                    className={`${inputClass} appearance-none cursor-pointer`}
+                    value={form.role} 
+                    onChange={set('role')}
+                  >
+                    <option value="STUDENT">Student</option>
+                    <option value="TEACHER">Teacher</option>
+                    <option value="ADMIN">Administrator</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Gender</label>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 z-10" />
+                  <select 
+                    className={`${inputClass} appearance-none cursor-pointer`}
+                    value={form.gender} 
+                    onChange={set('gender')}
+                    required
+                  >
+                    <option value="" disabled>Select Gender</option>
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
               </div>
             </div>
 

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { DollarSign, Plus, Search, Filter, Download, CheckCircle2, AlertCircle, Clock, RefreshCw, X } from 'lucide-react';
 import Modal from '@/components/Modal';
+import { useAuthStore } from '@/store/useAuthStore';
 
 type Status = 'all' | 'PENDING' | 'PAID' | 'OVERDUE';
 
@@ -28,25 +29,27 @@ const inputClass = "w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rou
 const labelClass = "block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5";
 
 export default function AdminFeesPage() {
+  const { profile } = useAuthStore();
   const [activeTab, setActiveTab] = useState<Status>('all');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ student_email: '', amount: '', description: 'Term 1 Tuition Fee', due_date: '' });
+  const [form, setForm] = useState({ student_email: '', amount: '', description: 'Tuition Fee 2026/2027', due_date: '', split_terms: false });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
 
   const fetchInvoices = useCallback(async () => {
+    if (!profile?.id) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/invoices?status=${activeTab}`);
+      const res = await fetch(`/api/invoices?status=${activeTab}&adminId=${profile.id}`);
       const json = await res.json();
       setInvoices(json.data || []);
     } catch { setInvoices([]); }
     finally { setLoading(false); }
-  }, [activeTab]);
+  }, [activeTab, profile?.id]);
 
   useEffect(() => { fetchInvoices(); }, [fetchInvoices]);
 
@@ -67,24 +70,36 @@ export default function AdminFeesPage() {
     setFormLoading(true); setFormError(''); setFormSuccess('');
     try {
       // Find student by email first
-      const studRes = await fetch(`/api/students`);
+      const studRes = await fetch(`/api/students?adminId=${profile?.id}`);
       const studJson = await studRes.json();
       const student = studJson.data?.find((s: any) => s.profiles?.email === form.student_email);
       if (!student) throw new Error('Student with that email not found');
 
-      const res = await fetch('/api/invoices', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          student_id: student.id,
-          amount: parseFloat(form.amount),
-          description: form.description,
-          due_date: form.due_date || null,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setFormSuccess('Invoice created successfully!');
+      const totalAmount = parseFloat(form.amount);
+      const invoicesToCreate = form.split_terms ? [
+        { amount: totalAmount / 3, desc: `${form.description} - First Term` },
+        { amount: totalAmount / 3, desc: `${form.description} - Second Term` },
+        { amount: totalAmount / 3, desc: `${form.description} - Third Term` }
+      ] : [
+        { amount: totalAmount, desc: form.description }
+      ];
+
+      for (const inv of invoicesToCreate) {
+        const res = await fetch(`/api/invoices?adminId=${profile?.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            student_id: student.id,
+            amount: inv.amount,
+            description: inv.desc,
+            due_date: form.due_date || null,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+      }
+
+      setFormSuccess(form.split_terms ? 'Invoices split and created successfully!' : 'Invoice created successfully!');
       setTimeout(() => { setShowCreate(false); fetchInvoices(); setFormSuccess(''); }, 1500);
     } catch (err: any) {
       setFormError(err.message);
@@ -102,7 +117,25 @@ export default function AdminFeesPage() {
           <p className="text-slate-500 text-sm mt-1">Track invoices, payments and defaulters.</p>
         </div>
         <div className="flex gap-3">
-          <button onClick={() => {}} className="flex items-center space-x-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 shadow-sm text-sm font-medium transition-colors">
+          <button onClick={() => {
+            const headers = ["Student", "Email", "Description", "Amount", "Due Date", "Status"];
+            const csvRows = filtered.map(inv => {
+              const studentName = inv.profiles ? `${inv.profiles.first_name} ${inv.profiles.last_name}` : '—';
+              const email = inv.profiles?.email || '—';
+              const dueDate = inv.due_date ? new Date(inv.due_date).toLocaleDateString() : '—';
+              return `"${studentName}","${email}","${inv.description}",${inv.amount},"${dueDate}","${inv.status}"`;
+            });
+            const csvContent = [headers.join(','), ...csvRows].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `fees_report.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+          }} className="flex items-center space-x-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 shadow-sm text-sm font-medium transition-colors">
             <Download className="w-4 h-4" /><span>Export Report</span>
           </button>
           <button onClick={() => setShowCreate(true)}
@@ -236,22 +269,38 @@ export default function AdminFeesPage() {
             <p className="text-xs text-slate-400 mt-1">Enter the registered email of the student.</p>
           </div>
           <div>
-            <label className={labelClass}>Description *</label>
-            <input className={inputClass} placeholder="e.g. Term 1 Tuition Fee 2026" required
+            <label className={labelClass}>Base Description *</label>
+            <input className={inputClass} placeholder="e.g. Tuition Fee 2026" required
               value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelClass}>Amount (₦) *</label>
-              <input type="number" step="0.01" min="0" className={inputClass} placeholder="450.00" required
+              <label className={labelClass}>Total Amount (₦) *</label>
+              <input type="number" step="0.01" min="0" className={inputClass} placeholder="450000.00" required
                 value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} />
             </div>
             <div>
-              <label className={labelClass}>Due Date</label>
+              <label className={labelClass}>Initial Due Date</label>
               <input type="date" className={inputClass}
                 value={form.due_date} onChange={e => setForm(p => ({ ...p, due_date: e.target.value }))} />
             </div>
           </div>
+          
+          <div className="flex items-center space-x-2 pt-2">
+            <input 
+              type="checkbox" 
+              id="split_terms" 
+              className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              checked={form.split_terms} 
+              onChange={e => setForm(p => ({ ...p, split_terms: e.target.checked }))} 
+            />
+            <label htmlFor="split_terms" className="text-sm font-semibold text-slate-700">Split payment into 3 equal terms</label>
+          </div>
+          {form.split_terms && (
+            <p className="text-xs text-emerald-600 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
+              This will automatically generate 3 separate invoices (First Term, Second Term, Third Term) dividing the total amount equally.
+            </p>
+          )}
 
           {formError && (
             <div className="flex items-start space-x-2 p-3 bg-red-50 border border-red-100 rounded-xl">

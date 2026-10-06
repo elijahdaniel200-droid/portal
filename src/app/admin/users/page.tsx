@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Filter, Upload, Plus, Edit2, Trash2, RefreshCw, Users, GraduationCap, Eye } from 'lucide-react';
+import { Search, Filter, Upload, Plus, Edit2, Trash2, RefreshCw, Users, GraduationCap, Eye, Download } from 'lucide-react';
 import Modal from '@/components/Modal';
 import AddStudentForm from '@/components/AddStudentForm';
 import AddTeacherForm from '@/components/AddTeacherForm';
 import StudentProfileModal from '@/components/StudentProfileModal';
+import TeacherProfileModal from '@/components/TeacherProfileModal';
+import { useAuthStore } from '@/store/useAuthStore';
 
 type Tab = 'students' | 'teachers';
 
@@ -27,6 +29,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function UserManagementPage() {
+  const { profile } = useAuthStore();
   const [activeTab, setActiveTab] = useState<Tab>('students');
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,11 +37,13 @@ export default function UserManagementPage() {
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [showAddTeacher, setShowAddTeacher] = useState(false);
   const [viewStudentId, setViewStudentId] = useState<string | null>(null);
+  const [viewTeacherId, setViewTeacherId] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
+    if (!profile?.id) return;
     setLoading(true);
     try {
-      const endpoint = activeTab === 'students' ? '/api/students' : '/api/teachers';
+      const endpoint = activeTab === 'students' ? `/api/students?adminId=${profile.id}` : `/api/teachers?adminId=${profile.id}`;
       const res = await fetch(endpoint);
       const json = await res.json();
       
@@ -76,7 +81,7 @@ export default function UserManagementPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab]);
+  }, [activeTab, profile?.id]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -103,9 +108,78 @@ export default function UserManagementPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <button className="flex items-center space-x-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 shadow-sm transition-colors font-medium text-sm">
-            <Upload className="w-4 h-4" />
-            <span>Import CSV</span>
+          <input 
+            type="file" 
+            accept=".csv" 
+            className="hidden" 
+            id="csv-upload-users" 
+            onChange={async (e) => {
+              if (e.target.files && e.target.files.length > 0) {
+                const file = e.target.files[0];
+                const text = await file.text();
+                const lines = text.split('\n').filter(l => l.trim() !== '');
+                if (lines.length < 2) return alert('CSV must have a header row and at least one data row.');
+                
+                const isStudent = activeTab === 'students';
+                const users = [];
+                for (let i = 1; i < lines.length; i++) {
+                  const parts = lines[i].split(',').map(p => p.replace(/(^"|"$)/g, '').trim());
+                  if (parts.length >= 3) {
+                    const nameParts = parts[0].split(' ');
+                    users.push({
+                      first_name: nameParts[0] || 'Unknown',
+                      last_name: nameParts.slice(1).join(' ') || 'User',
+                      email: parts[1],
+                      identifier: parts[2],
+                      department: !isStudent && parts.length > 3 ? parts[3] : 'General'
+                    });
+                  }
+                }
+
+                if (users.length > 0) {
+                  try {
+                    alert('Importing users, please wait...');
+                    const res = await fetch('/api/admin/users/import', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ role: isStudent ? 'STUDENT' : 'TEACHER', users })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                      alert(`Successfully imported ${data.count} users!${data.errors.length > 0 ? ` Failed: ${data.errors.length}` : ''}`);
+                      fetchUsers();
+                    } else {
+                      alert(`Import failed: ${data.error}`);
+                    }
+                  } catch (err) {
+                    console.error(err);
+                    alert('An error occurred during import.');
+                  }
+                }
+                e.target.value = '';
+              }
+            }} 
+          />
+          <button
+            onClick={() => {
+              const isStudent = activeTab === 'students';
+              const headers = isStudent ? ["Student Name", "Email", "Enrollment ID", "Class", "Joined", "Status"] : ["Staff Member", "Email", "Department", "Hire Date", "Joined", "Status"];
+              const csvRows = filtered.map(u => `"${u.name}","${u.email}","${u.identifier}","${u.detail}","${u.joinedAt}","${u.status}"`);
+              const csvContent = [headers.join(','), ...csvRows].join('\n');
+              const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement("a");
+              link.setAttribute("href", url);
+              link.setAttribute("download", `${activeTab}_report.csv`);
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              URL.revokeObjectURL(url);
+            }}
+            className="flex items-center space-x-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 shadow-sm transition-colors font-medium text-sm"
+          >
+            <Download className="w-4 h-4" />
+            <span>Export CSV</span>
           </button>
           <button
             onClick={() => activeTab === 'students' ? setShowAddStudent(true) : setShowAddTeacher(true)}
@@ -227,11 +301,12 @@ export default function UserManagementPage() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {activeTab === 'students' && (
-                          <button onClick={() => setViewStudentId(user.id)} className="p-2 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors">
-                            <Eye className="w-4 h-4" />
-                          </button>
-                        )}
+                        <button 
+                          onClick={() => activeTab === 'students' ? setViewStudentId(user.id) : setViewTeacherId(user.id)} 
+                          className="p-2 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
                         <button className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors">
                           <Edit2 className="w-4 h-4" />
                         </button>
@@ -285,6 +360,12 @@ export default function UserManagementPage() {
         studentId={viewStudentId!} 
         isOpen={!!viewStudentId} 
         onClose={() => setViewStudentId(null)} 
+      />
+
+      <TeacherProfileModal 
+        teacherId={viewTeacherId!} 
+        isOpen={!!viewTeacherId} 
+        onClose={() => setViewTeacherId(null)} 
       />
     </div>
   );

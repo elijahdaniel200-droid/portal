@@ -3,6 +3,14 @@ import { createAdminClient } from '@/lib/supabase-admin';
 
 export async function POST(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const actorId = searchParams.get('adminId') || searchParams.get('teacherId');
+    if (!actorId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const supabase = createAdminClient();
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', actorId).single();
+    if (profile?.role === 'STUDENT' || !profile) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
     const { records } = await req.json();
     if (!records?.length) return NextResponse.json({ error: 'No records provided' }, { status: 400 });
 
@@ -13,12 +21,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, mock: true });
     }
 
-    const supabase = createAdminClient();
     const { error } = await supabase.from('grades').upsert(records, {
       onConflict: 'student_id,class_subject_id,term_id',
       ignoreDuplicates: false,
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+    await import('@/lib/audit').then(m => m.logAuditAction(actorId, 'SUBMIT_GRADES', { record_count: records.length, first_class_subject_id: records[0].class_subject_id }));
+
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

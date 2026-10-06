@@ -3,15 +3,17 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Users, GraduationCap, LayoutDashboard, Settings, LogOut, CreditCard, CalendarDays, ShieldAlert, Bell, ChevronRight } from 'lucide-react';
+import { Users, GraduationCap, LayoutDashboard, Settings, LogOut, CreditCard, CalendarDays, ShieldAlert, Bell, ChevronRight, CheckSquare } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import NotificationsDropdown from '@/components/NotificationsDropdown';
 
 const navigation = [
   { name: 'Overview', href: '/admin', icon: LayoutDashboard },
   { name: 'User Management', href: '/admin/users', icon: Users },
   { name: 'Academics Setup', href: '/admin/academics', icon: GraduationCap },
+  { name: 'Result Management', href: '/admin/results', icon: CheckSquare },
   { name: 'Fee Management', href: '/admin/fees', icon: CreditCard },
   { name: 'Events & Calendar', href: '/admin/events', icon: CalendarDays },
   { name: 'System Logs', href: '/admin/logs', icon: ShieldAlert },
@@ -105,37 +107,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </p>
           </div>
           <div className="flex items-center space-x-3 relative">
-            <button 
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 rounded-full hover:bg-slate-100 transition-colors"
-            >
-              <Bell className="w-5 h-5 text-slate-500" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-400 rounded-full ring-2 ring-white"></span>
-            </button>
-            
-            {showNotifications && (
-              <div className="absolute top-full right-10 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 p-4 z-50 animate-in fade-in slide-in-from-top-2">
-                <h3 className="font-bold text-slate-800 mb-3">Notifications</h3>
-                <div className="space-y-3">
-                  <div className="p-3 bg-slate-50 rounded-xl">
-                    <p className="text-sm font-semibold text-slate-800">System Update</p>
-                    <p className="text-xs text-slate-500 mt-1">Application deployment completed successfully.</p>
-                    <p className="text-xs text-emerald-500 mt-2 font-semibold">2m ago</p>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded-xl">
-                    <p className="text-sm font-semibold text-slate-800">New User Registration</p>
-                    <p className="text-xs text-slate-500 mt-1">A new student has been registered to the system.</p>
-                    <p className="text-xs text-emerald-500 mt-2 font-semibold">1h ago</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setShowNotifications(false)}
-                  className="w-full mt-3 py-2 text-sm font-bold text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"
-                >
-                  Mark all as read
-                </button>
-              </div>
-            )}
+            <NotificationsDropdown />
 
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">
               {initials}

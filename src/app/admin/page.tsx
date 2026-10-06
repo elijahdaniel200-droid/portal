@@ -18,31 +18,60 @@ const statusStyle: Record<string, string> = {
   'Inactive': 'bg-red-100 text-red-600',
 };
 
+import { useAuthStore } from '@/store/useAuthStore';
+
 export default function AdminDashboard() {
   const router = useRouter();
+  const { profile } = useAuthStore();
   const [recentStudents, setRecentStudents] = useState<any[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
 
+  const [dashboardStats, setDashboardStats] = useState({
+    totalStudents: 0,
+    totalTeachers: 0,
+    revenue: 0,
+    pendingRevenue: 0,
+    overdueRevenue: 0,
+  });
+
   useEffect(() => {
-    fetch('/api/students')
-      .then(res => res.json())
-      .then(json => {
-        if (json.data) {
-          const formatted = json.data.slice(0, 5).map((item: any) => {
-            const profile = Array.isArray(item.profiles) ? item.profiles[0] : item.profiles;
-            return {
-              id: item.id,
-              name: `${profile?.first_name || 'Unknown'} ${profile?.last_name || ''}`,
-              enrollmentId: item.enrollment_number,
-              class: item.classes?.name || 'Unassigned',
-              status: 'Active'
-            };
-          });
-          setRecentStudents(formatted);
-        }
-      })
-      .catch(console.error);
-  }, []);
+    if (profile?.id) {
+      fetch(`/api/admin/dashboard?adminId=${profile.id}`)
+        .then(res => res.json())
+        .then(json => {
+          if (json.data) {
+            setDashboardStats(json.data);
+          }
+        })
+        .catch(console.error);
+
+      fetch(`/api/students?adminId=${profile.id}`)
+        .then(res => res.json())
+        .then(json => {
+          if (json.data) {
+            const formatted = json.data.slice(0, 5).map((item: any) => {
+              const p = Array.isArray(item.profiles) ? item.profiles[0] : item.profiles;
+              return {
+                id: item.id,
+                name: `${p?.first_name || 'Unknown'} ${p?.last_name || ''}`,
+                enrollmentId: item.enrollment_number,
+                class: item.classes?.name || 'Unassigned',
+                status: 'Active'
+              };
+            });
+            setRecentStudents(formatted);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [profile]);
+
+  const dynamicStats = [
+    { title: 'Total Students', value: dashboardStats.totalStudents.toString(), change: 'Live', up: true, icon: Users, from: '#3b82f6', to: '#1d4ed8', path: '/admin/users' },
+    { title: 'Teaching Staff', value: dashboardStats.totalTeachers.toString(), change: 'Live', up: true, icon: GraduationCap, from: '#10b981', to: '#059669', path: '/admin/users' },
+    { title: 'Revenue (Term 1)', value: `₦${dashboardStats.revenue.toLocaleString()}`, change: 'Live', up: true, icon: DollarSign, from: '#f59e0b', to: '#d97706', path: '/admin/fees' },
+    { title: 'System Uptime', value: '99.9%', change: 'Healthy', up: null, icon: Activity, from: '#8b5cf6', to: '#6d28d9', path: '/admin/logs' },
+  ];
 
   return (
     <div className="space-y-8">
@@ -75,7 +104,7 @@ export default function AdminDashboard() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {stats.map((stat, i) => {
+        {dynamicStats.map((stat, i) => {
           const Icon = stat.icon;
           return (
             <div 
@@ -173,19 +202,23 @@ export default function AdminDashboard() {
             <h3 className="font-bold text-slate-900 mb-4">Fee Collection Status</h3>
             <div className="space-y-3">
               {[
-                { label: 'Collected', value: '₦12,450,000', pct: 79, color: 'bg-emerald-500' },
-                { label: 'Pending', value: '₦3,240,000', pct: 21, color: 'bg-amber-400' },
-                { label: 'Overdue', value: '₦810,000', pct: 5, color: 'bg-red-500' },
-              ].map((item) => (
-                <div key={item.label}>
-                  <div className="flex justify-between text-xs font-medium text-slate-600 mb-1">
-                    <span>{item.label}</span><span className="font-bold">{item.value}</span>
+                { label: 'Collected', value: dashboardStats.revenue, color: 'bg-emerald-500' },
+                { label: 'Pending', value: dashboardStats.pendingRevenue, color: 'bg-amber-400' },
+                { label: 'Overdue', value: dashboardStats.overdueRevenue, color: 'bg-red-500' },
+              ].map((item) => {
+                const total = dashboardStats.revenue + dashboardStats.pendingRevenue + dashboardStats.overdueRevenue;
+                const pct = total > 0 ? Math.round((item.value / total) * 100) : 0;
+                return (
+                  <div key={item.label}>
+                    <div className="flex justify-between text-xs font-medium text-slate-600 mb-1">
+                      <span>{item.label}</span><span className="font-bold">₦{item.value.toLocaleString()}</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full ${item.color} transition-all`} style={{ width: `${pct}%` }} />
+                    </div>
                   </div>
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full ${item.color} transition-all`} style={{ width: `${item.pct}%` }} />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

@@ -83,7 +83,18 @@ export default function TeacherClassesPage() {
                 <h2 className="text-xl font-bold text-slate-900">{rosterClass.name}</h2>
                 <p className="text-slate-500 text-sm">{rosterClass.count} Students Enrolled</p>
               </div>
-              <button className="flex items-center space-x-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors">
+              <button onClick={() => {
+                const headers = ["Student ID", "Name", "Status"];
+                const csvRows = demoRoster.map(r => `"${r.id}","${r.name}","${r.status}"`);
+                const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...csvRows].join('\\n');
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `roster_${rosterClass.name.replace(/\s+/g, '_')}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              }} className="flex items-center space-x-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors">
                 <Download className="w-4 h-4" /><span>Export List</span>
               </button>
             </div>

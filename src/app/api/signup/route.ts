@@ -3,9 +3,9 @@ import { createAdminClient } from '@/lib/supabase-admin';
 
 export async function POST(req: Request) {
   try {
-    const { first_name, last_name, email, password, role, enrollment_number } = await req.json();
+    const { first_name, last_name, email, password, role, enrollment_number, gender } = await req.json();
 
-    if (!first_name || !last_name || !email || !password || !role) {
+    if (!first_name || !last_name || !email || !password || !role || !gender) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
       email,
       password,
       email_confirm: true,
-      user_metadata: { first_name, last_name, role },
+      user_metadata: { first_name, last_name, role, gender },
     });
 
     if (authError) return NextResponse.json({ error: authError.message }, { status: 400 });
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
 
     // 2. Update/upsert profile role
     const { error: profileError } = await supabase.from('profiles').upsert({
-      id: userId, email, first_name, last_name, role,
+      id: userId, email, first_name, last_name, role, gender
     });
     
     if (profileError) {

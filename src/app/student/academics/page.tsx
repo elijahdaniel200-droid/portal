@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
-import { BookOpen, Calendar, GraduationCap, Clock, CheckCircle2, Download, Award, AlertCircle } from 'lucide-react';
+import { BookOpen, Calendar, GraduationCap, Clock, CheckCircle2, Download, Award, AlertCircle, Printer } from 'lucide-react';
+import Link from 'next/link';
 import { useAuthStore } from '@/store/useAuthStore';
 import CourseRegistrationModal from '@/components/CourseRegistrationModal';
 
@@ -159,10 +160,13 @@ export default function StudentAcademicsPage() {
           >
             <CheckCircle2 className="w-4 h-4" /><span>Course Registration</span>
           </button>
-          <button onClick={downloadPDF} className="flex items-center space-x-2 px-5 py-2.5 rounded-xl font-bold text-white shadow-lg transition-all hover:scale-105"
-            style={{ background: 'linear-gradient(135deg,#3b82f6,#1d4ed8)', boxShadow: '0 4px 20px rgba(59,130,246,0.3)' }}>
-            <Download className="w-4 h-4" /><span>Download PDF</span>
-          </button>
+          <Link 
+            href="/student/report-card" 
+            className="flex items-center space-x-2 px-5 py-2.5 rounded-xl font-bold text-white shadow-lg transition-all hover:scale-105"
+            style={{ background: 'linear-gradient(135deg,#3b82f6,#1d4ed8)', boxShadow: '0 4px 20px rgba(59,130,246,0.3)' }}
+          >
+            <Printer className="w-4 h-4" /><span>View Official Report Card</span>
+          </Link>
         </div>
       </div>
 
