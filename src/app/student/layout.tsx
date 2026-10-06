@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, CreditCard, LayoutDashboard, UserCircle, LogOut, GraduationCap, Bell, ChevronRight } from 'lucide-react';
+import { BookOpen, CreditCard, LayoutDashboard, UserCircle, LogOut, GraduationCap, Bell, ChevronRight, Menu, XCircle } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
@@ -22,6 +22,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const router = useRouter();
   const { profile, clearAuth } = useAuthStore();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -33,11 +34,27 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: '#f0f4f8' }}>
+      {/* Mobile Menu Overlay */}
+      {showMobileMenu && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setShowMobileMenu(false)}
+        />
+      )}
+
       {/* ── Sidebar ── */}
       <aside
-        className="w-64 flex-shrink-0 hidden md:flex flex-col relative overflow-hidden"
+        className={`w-64 flex-shrink-0 flex flex-col absolute md:relative z-50 h-full transition-transform duration-300 ease-in-out ${showMobileMenu ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} overflow-hidden`}
         style={{ background: 'linear-gradient(180deg, #05111f 0%, #0a1929 60%, #0d2137 100%)' }}
       >
+        {/* Close button for mobile */}
+        <button 
+          className="absolute top-4 right-4 text-white/50 hover:text-white md:hidden z-20"
+          onClick={() => setShowMobileMenu(false)}
+        >
+          <XCircle className="w-6 h-6" />
+        </button>
+
         {/* Decorative orb */}
         <div className="orb w-56 h-56 bg-blue-600/20 -top-16 -left-16" />
         <div className="orb w-40 h-40 bg-amber-500/10 bottom-20 -right-10" />
@@ -64,6 +81,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
               <Link
                 key={item.name}
                 href={item.href}
+                onClick={() => setShowMobileMenu(false)}
                 className={`nav-link ${isActive ? 'active' : ''} flex items-center space-x-3 px-4 py-3 rounded-xl transition-all text-sm font-medium ${
                   isActive
                     ? 'bg-white/10 text-white shadow-sm'
@@ -100,11 +118,17 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       </aside>
 
       {/* ── Main ── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden relative">
         {/* Top bar */}
-        <header className="h-16 bg-white border-b border-slate-200/80 flex items-center justify-between px-6 shadow-sm">
-          <div>
-            <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">
+        <header className="h-16 bg-white border-b border-slate-200/80 flex items-center justify-between px-4 md:px-6 shadow-sm">
+          <div className="flex items-center space-x-3">
+            <button 
+              className="md:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
+              onClick={() => setShowMobileMenu(true)}
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <p className="text-xs text-slate-400 uppercase tracking-wider font-medium hidden sm:block">
               {navigation.find(n => n.href === pathname)?.name || 'Student Portal'}
             </p>
           </div>
