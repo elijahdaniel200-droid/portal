@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { lmsFallbackStore } from '@/lib/lms-store';
 
 export async function GET(req: Request) {
   try {
@@ -12,21 +13,47 @@ export async function GET(req: Request) {
 
     const supabase = createAdminClient();
 
-    const { data: assignments } = await supabase
+    let assignments: any[] = [];
+    let materials: any[] = [];
+
+    // 1. Query Assignments
+    const { data: dbAssignments, error: asgErr } = await supabase
       .from('assignments')
       .select('*')
       .eq('class_subject_id', class_subject_id)
       .order('created_at', { ascending: false });
 
-    const { data: materials } = await supabase
+    if (asgErr && asgErr.code === 'PGRST205') {
+      assignments = lmsFallbackStore.getAssignments(class_subject_id);
+    } else if (!asgErr && dbAssignments && dbAssignments.length > 0) {
+      assignments = dbAssignments;
+    } else {
+      // Empty or fallback
+      assignments = lmsFallbackStore.getAssignments(class_subject_id);
+    }
+
+    // 2. Query Materials
+    const { data: dbMaterials, error: matErr } = await supabase
       .from('learning_materials')
       .select('*')
       .eq('class_subject_id', class_subject_id)
       .order('created_at', { ascending: false });
 
-    return NextResponse.json({ assignments: assignments || [], materials: materials || [] });
+    if (matErr && matErr.code === 'PGRST205') {
+      materials = lmsFallbackStore.getMaterials(class_subject_id);
+    } else if (!matErr && dbMaterials && dbMaterials.length > 0) {
+      materials = dbMaterials;
+    } else {
+      materials = lmsFallbackStore.getMaterials(class_subject_id);
+    }
+
+    return NextResponse.json({ assignments, materials });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('Teacher assignments GET error:', err);
+    return NextResponse.json({
+      assignments: lmsFallbackStore.getAssignments(),
+      materials: lmsFallbackStore.getMaterials()
+    });
   }
 }
 
@@ -49,8 +76,13 @@ export async function POST(req: Request) {
         })
         .select()
         .single();
-      
-      if (error) throw error;
+
+      if (error && error.code === 'PGRST205') {
+        const fallbackCreated = lmsFallbackStore.addAssignment(data);
+        return NextResponse.json({ success: true, data: fallbackCreated });
+      } else if (error) {
+        throw error;
+      }
       return NextResponse.json({ success: true, data: inserted });
     } else if (type === 'material') {
       const { data: inserted, error } = await supabase
@@ -64,13 +96,19 @@ export async function POST(req: Request) {
         })
         .select()
         .single();
-      
-      if (error) throw error;
+
+      if (error && error.code === 'PGRST205') {
+        const fallbackCreated = lmsFallbackStore.addMaterial(data);
+        return NextResponse.json({ success: true, data: fallbackCreated });
+      } else if (error) {
+        throw error;
+      }
       return NextResponse.json({ success: true, data: inserted });
     }
 
     return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
   } catch (err: any) {
+    console.error('Teacher assignments POST error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

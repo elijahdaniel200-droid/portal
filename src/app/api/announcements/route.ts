@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+import { createAdminClient } from '@/lib/supabase-admin';
+import { lmsFallbackStore } from '@/lib/lms-store';
 
 export async function GET(request: Request) {
   try {
@@ -11,7 +8,12 @@ export async function GET(request: Request) {
     const target = searchParams.get('target');
     const classId = searchParams.get('class_id');
 
-    let query = supabase.from('announcements').select('*, profiles(first_name, last_name)').order('created_at', { ascending: false });
+    const supabase = createAdminClient();
+
+    let query = supabase
+      .from('announcements')
+      .select('*, profiles(first_name, last_name)')
+      .order('created_at', { ascending: false });
 
     if (target) {
       if (classId && target === 'SPECIFIC_CLASS') {
@@ -22,20 +24,47 @@ export async function GET(request: Request) {
     }
 
     const { data, error } = await query;
-    if (error) throw error;
+
+    if (error && error.code === 'PGRST205') {
+      const fallbackAnnouncements = lmsFallbackStore.getAnnouncements(target, classId);
+      return NextResponse.json({ data: fallbackAnnouncements });
+    } else if (error) {
+      throw error;
+    }
+
+    if (!data || data.length === 0) {
+      const fallbackAnnouncements = lmsFallbackStore.getAnnouncements(target, classId);
+      return NextResponse.json({ data: fallbackAnnouncements });
+    }
+
     return NextResponse.json({ data });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('Announcements GET error:', err);
+    return NextResponse.json({ data: lmsFallbackStore.getAnnouncements() });
   }
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { data, error } = await supabase.from('announcements').insert([body]).select();
-    if (error) throw error;
-    return NextResponse.json({ data });
+    const supabase = createAdminClient();
+
+    const { data, error } = await supabase
+      .from('announcements')
+      .insert([body])
+      .select()
+      .single();
+
+    if (error && error.code === 'PGRST205') {
+      const fallbackCreated = lmsFallbackStore.addAnnouncement(body);
+      return NextResponse.json({ success: true, data: fallbackCreated });
+    } else if (error) {
+      throw error;
+    }
+
+    return NextResponse.json({ success: true, data });
   } catch (err: any) {
+    console.error('Announcements POST error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

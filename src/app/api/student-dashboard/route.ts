@@ -105,6 +105,22 @@ export async function GET(request: Request) {
       }
     }
 
+    const rawAnnouncements = (await import('@/lib/lms-store')).lmsFallbackStore.getAnnouncements('STUDENT', student?.class_id);
+    const announcements = rawAnnouncements.slice(0, 5).map(a => {
+      const d = new Date(a.created_at);
+      const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+      const type = a.category === 'FEES' ? 'warning' : a.category === 'EVENT' ? 'event' : 'info';
+      return {
+        id: a.id,
+        date: dateStr,
+        title: a.title,
+        desc: a.content,
+        type,
+        created_at: a.created_at,
+        category: a.category || 'GENERAL'
+      };
+    });
+
     return NextResponse.json({
       pendingFees,
       nextDueDate,
@@ -112,14 +128,11 @@ export async function GET(request: Request) {
       avgGrade,
       classesCount,
       className,
-      // Pass some static announcements for now, or fetch from a table if it exists
-      announcements: [
-        { date: 'Oct 01', title: 'Mid-Term Exam Timetable Released', desc: 'View the full schedule under the Academics tab.', type: 'info' },
-        { date: 'Sep 28', title: 'Fee Payment Deadline Reminder', desc: 'Term 1 fees must be paid before Oct 15 to avoid penalties.', type: 'warning' },
-        { date: 'Sep 25', title: 'Cultural Day — Nov 5', desc: 'All students are expected to participate in the annual Cultural Day event.', type: 'event' },
-      ],
+      announcements,
       schedule
     });
+
+
 
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

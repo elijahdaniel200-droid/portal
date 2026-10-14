@@ -5,6 +5,8 @@ import { Save, Download, RefreshCw, CheckCircle2, AlertCircle, Upload, User, Map
 import Modal from '@/components/Modal';
 import { useAuthStore } from '@/store/useAuthStore';
 
+import { calculateGrade, computeTotalScore } from '@/lib/grading';
+
 interface GradeRow {
   studentId: string;
   name: string;
@@ -15,24 +17,19 @@ interface GradeRow {
 }
 
 function computeTotal(r: GradeRow) {
-  return Math.round(r.ca1 + r.ca2 + r.exam);
+  return computeTotalScore({ ca1: r.ca1, ca2: r.ca2, exam: r.exam });
 }
 
 function getGrade(total: number) {
-  if (total >= 90) return { grade: 'A+', color: 'text-emerald-600' };
-  if (total >= 80) return { grade: 'A',  color: 'text-emerald-600' };
-  if (total >= 70) return { grade: 'B+', color: 'text-blue-600' };
-  if (total >= 60) return { grade: 'B',  color: 'text-blue-600' };
-  if (total >= 50) return { grade: 'C',  color: 'text-amber-600' };
-  return { grade: 'F', color: 'text-red-600' };
+  const g = calculateGrade(total);
+  return { grade: g.grade, color: `font-bold ${total >= 50 ? 'text-emerald-600' : 'text-rose-600'}` };
 }
 
 function getRemark(total: number) {
-  if (total >= 90) return { text: 'Excellent', cls: 'bg-emerald-100 text-emerald-700' };
-  if (total >= 70) return { text: 'Passed', cls: 'bg-blue-100 text-blue-700' };
-  if (total >= 50) return { text: 'Credit', cls: 'bg-amber-100 text-amber-700' };
-  return { text: 'Failed', cls: 'bg-red-100 text-red-600' };
+  const g = calculateGrade(total);
+  return { text: g.remark, cls: g.badgeClass };
 }
+
 
 export default function TeacherGradebookPage() {
   const { profile } = useAuthStore();

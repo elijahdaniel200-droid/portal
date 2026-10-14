@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { DollarSign, Plus, Search, Filter, Download, CheckCircle2, AlertCircle, Clock, RefreshCw, X } from 'lucide-react';
+import { DollarSign, Plus, Search, Filter, Download, CheckCircle2, AlertCircle, Clock, RefreshCw, X, FileText, Check } from 'lucide-react';
 import Modal from '@/components/Modal';
 import { useAuthStore } from '@/store/useAuthStore';
+import { generatePaymentReceiptPDF } from '@/lib/pdf/receiptPdf';
 
 type Status = 'all' | 'PENDING' | 'PAID' | 'OVERDUE';
 
@@ -33,12 +34,14 @@ export default function AdminFeesPage() {
   const [activeTab, setActiveTab] = useState<Status>('all');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ student_email: '', amount: '', description: 'Tuition Fee 2026/2027', due_date: '', split_terms: false });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
+
 
   const fetchInvoices = useCallback(async () => {
     if (!profile?.id) return;
@@ -105,6 +108,54 @@ export default function AdminFeesPage() {
       setFormError(err.message);
     } finally {
       setFormLoading(false);
+    }
+  };
+
+  const handleDownloadReceipt = (inv: Invoice) => {
+    const studentName = inv.profiles ? `${inv.profiles.first_name} ${inv.profiles.last_name}` : 'Student';
+    const doc = generatePaymentReceiptPDF({
+      school: {
+        name: "EduPortal International High School",
+        address: "10 Academic Boulevard, Uyo, Akwa Ibom State",
+        email: "finance@eduportal.sch.ng",
+        phone: "+234 802 345 6789",
+        motto: "Excellence in Character and Learning",
+      },
+      student: {
+        name: studentName,
+        enrollmentNo: inv.enrollment_number || 'STU-2026-0001',
+        email: inv.profiles?.email,
+      },
+      transaction: {
+        receiptNo: `REC-${inv.id.split('-')[0].toUpperCase()}`,
+        reference: `INV-${inv.id.slice(0, 8).toUpperCase()}`,
+        invoiceId: inv.id,
+        date: new Date(inv.created_at || Date.now()).toLocaleDateString('en-US', { dateStyle: 'medium' }),
+        description: inv.description,
+        amount: inv.amount,
+        paymentMethod: 'Bank Transfer / Paystack / Cash Settlement',
+      }
+    });
+    doc.save(`Receipt_${inv.enrollment_number || 'STU'}_${inv.id.split('-')[0].toUpperCase()}.pdf`);
+  };
+
+  const handleMarkPaid = async (invoiceId: string) => {
+    if (!profile?.id) return;
+    if (!confirm('Mark this invoice as PAID? This will officially record settlement and notify the student.')) return;
+    setActionLoadingId(invoiceId);
+    try {
+      const res = await fetch(`/api/invoices?adminId=${profile.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoice_id: invoiceId, status: 'PAID', payment_method: 'Cash / Bank Transfer' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update invoice');
+      await fetchInvoices();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
@@ -241,10 +292,30 @@ export default function AdminFeesPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <button className="text-xs font-semibold text-emerald-600 hover:underline opacity-0 group-hover:opacity-100 transition-opacity">
-                          View
-                        </button>
+                        <div className="flex items-center space-x-2">
+                          {inv.status === 'PAID' ? (
+                            <button
+                              onClick={() => handleDownloadReceipt(inv)}
+                              className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200"
+                              title="Download Official PDF Receipt"
+                            >
+                              <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Receipt</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleMarkPaid(inv.id)}
+                              disabled={actionLoadingId === inv.id}
+                              className="inline-flex items-center space-x-1 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border border-slate-200 disabled:opacity-50"
+                              title="Record Offline Payment / Settle Invoice"
+                            >
+                              <Check className="w-3.5 h-3.5 text-slate-600" />
+                              <span>{actionLoadingId === inv.id ? 'Saving…' : 'Mark Paid'}</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
+
                     </tr>
                   );
                 })}

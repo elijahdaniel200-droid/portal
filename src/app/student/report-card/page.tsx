@@ -1,24 +1,27 @@
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
-import { Download, Printer, ArrowLeft, Award, BookOpen } from 'lucide-react';
+import { Download, Printer, ArrowLeft, Award, BookOpen, FileCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/useAuthStore';
+import { generateReportCardPDF } from '@/lib/pdf/reportCardPdf';
+import { calculateGrade } from '@/lib/grading';
 
 // Default mock data to fall back on missing fields
 const defaultSchool = {
-  name: "EXCELLENCE INTERNATIONAL ACADEMY",
-  address: "123 Education Way, Victoria Island, Lagos",
-  email: "info@excellenceacademy.edu.ng",
-  phone: "+234 800 123 4567",
-  motto: "Knowledge is Power",
-  logo: "https://api.dicebear.com/7.x/shapes/svg?seed=schoolLogo",
+  name: "EduPortal International High School",
+  address: "10 Academic Boulevard, Uyo, Akwa Ibom State",
+  email: "records@eduportal.sch.ng",
+  phone: "+234 802 345 6789",
+  motto: "Excellence in Character and Learning",
+  logo: "/eduportal-logo.jpg",
 };
 
 export default function ReportCardPage() {
   const { profile } = useAuthStore();
   const [isClient, setIsClient] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   
   const [reportData, setReportData] = useState<any>(null);
 
@@ -114,6 +117,22 @@ export default function ReportCardPage() {
     window.print();
   };
 
+  const handleDownloadPDF = () => {
+    if (!reportData) return;
+    setDownloadingPdf(true);
+    try {
+      const doc = generateReportCardPDF(reportData);
+      const cleanAdmission = (reportData.student.admissionNo || 'STU').replace(/[^a-zA-Z0-9]/g, '_');
+      const cleanTerm = (reportData.student.term || 'Term').replace(/\s+/g, '_');
+      doc.save(`ReportCard_${cleanAdmission}_${cleanTerm}.pdf`);
+    } catch (err) {
+      console.error('Error generating PDF report card:', err);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   if (!isClient) return null;
 
   if (loading) {
@@ -136,15 +155,26 @@ export default function ReportCardPage() {
     <div className="min-h-screen bg-slate-100 py-8 px-4 font-sans print:bg-white print:py-0 print:px-0">
       
       {/* Controls - Hidden during print */}
-      <div className="max-w-4xl mx-auto mb-6 flex justify-between items-center print:hidden">
-        <Link href="/student/academics" className="flex items-center space-x-2 text-slate-600 hover:text-slate-900 transition-colors bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-200">
+      <div className="max-w-4xl mx-auto mb-6 flex flex-col sm:flex-row justify-between items-center gap-3 print:hidden">
+        <Link href="/student/academics" className="flex items-center space-x-2 text-slate-600 hover:text-slate-900 transition-colors bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-200 text-sm font-semibold">
           <ArrowLeft className="w-4 h-4" />
-          <span className="font-semibold text-sm">Back to Academics</span>
+          <span>Back to Academics</span>
         </Link>
-        <div className="flex space-x-3">
-          <button onClick={handlePrint} className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl shadow-md transition-colors">
+        <div className="flex items-center space-x-3">
+          <button 
+            onClick={handleDownloadPDF} 
+            disabled={downloadingPdf}
+            className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl shadow-md transition-all active:scale-95 font-semibold text-sm cursor-pointer disabled:opacity-60"
+          >
+            <Download className="w-4 h-4" />
+            <span>{downloadingPdf ? 'Exporting PDF...' : 'Download Official PDF'}</span>
+          </button>
+          <button 
+            onClick={handlePrint} 
+            className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl shadow-md transition-all active:scale-95 font-semibold text-sm cursor-pointer"
+          >
             <Printer className="w-4 h-4" />
-            <span className="font-semibold text-sm">Print Result</span>
+            <span>Print Result</span>
           </button>
         </div>
       </div>

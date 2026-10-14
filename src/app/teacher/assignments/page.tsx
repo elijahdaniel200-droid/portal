@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
-import { Library, FileText, Upload, Plus, Calendar, Clock, Video, Link as LinkIcon, Book, Download, CheckSquare } from 'lucide-react';
+import { Library, FileText, Upload, Plus, Calendar, Clock, Video, Link as LinkIcon, Book, Download, CheckSquare, Paperclip, CheckCircle2, Trash2, AlertCircle, Sparkles } from 'lucide-react';
 import Modal from '@/components/Modal';
 import { supabase } from '@/lib/supabase';
 import { User } from 'lucide-react';
@@ -28,11 +28,44 @@ export default function TeacherAssignmentsPage() {
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
   const [gradingData, setGradingData] = useState<Record<string, { score: number, feedback: string }>>({});
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [formData, setFormData] = useState<any>({
     title: '', description: '', due_date: '', max_score: 100, file_url: '', material_type: 'DOCUMENT'
   });
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingFile(true);
+    try {
+      const data = new FormData();
+      data.append('file', file);
+      data.append('bucket', 'lms-materials');
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: data,
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Upload failed');
+
+      setFormData((prev: any) => ({ ...prev, file_url: json.url }));
+      setUploadedFileName(file.name);
+    } catch (err: any) {
+      alert(err.message || 'Failed to upload attachment');
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
 
   // Fetch configs
   useEffect(() => {
@@ -151,17 +184,25 @@ export default function TeacherAssignmentsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           submission_id: submissionId,
-          score: gradingData[submissionId].score,
-          feedback: gradingData[submissionId].feedback
+          score: gradingData[submissionId]?.score,
+          feedback: gradingData[submissionId]?.feedback
         })
       });
       if (res.ok) {
-        alert('Grade saved successfully!');
+        setSubmissions(prev => prev.map(s => s.id === submissionId ? {
+          ...s,
+          score: gradingData[submissionId]?.score,
+          feedback: gradingData[submissionId]?.feedback,
+          status: 'GRADED'
+        } : s));
+        setSaveSuccessMsg('Grade and feedback saved successfully!');
+        setTimeout(() => setSaveSuccessMsg(''), 3500);
       }
     } catch (err) {
       console.error(err);
     }
   };
+
 
   return (
     <div className="space-y-6">
@@ -306,15 +347,71 @@ export default function TeacherAssignmentsPage() {
             </div>
           )}
 
+          {/* File Attachment & Cloud Storage */}
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Resource URL (Optional)</label>
-            <input type="url" value={formData.file_url} onChange={e => setFormData({...formData, file_url: e.target.value})} placeholder="https://"
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-500 focus:outline-none" />
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Attachment / Resource</label>
+            
+            <input 
+              ref={fileInputRef} 
+              type="file" 
+              onChange={handleFileUpload} 
+              accept=".pdf,.doc,.docx,.ppt,.pptx,.mp4,.png,.jpg,.jpeg,.zip" 
+              className="hidden" 
+            />
+
+            {uploadedFileName || formData.file_url ? (
+              <div className="flex items-center justify-between p-3 bg-violet-50 border border-violet-200 rounded-xl">
+                <div className="flex items-center space-x-2 truncate">
+                  <Paperclip className="w-4 h-4 text-violet-600 shrink-0" />
+                  <span className="text-sm font-semibold text-violet-900 truncate">
+                    {uploadedFileName || (formData.file_url ? formData.file_url.split('/').pop() : 'Attached Resource')}
+                  </span>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => { setUploadedFileName(''); setFormData({ ...formData, file_url: '' }); }}
+                  className="p-1 hover:bg-violet-200 text-violet-700 rounded-lg transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-slate-200 hover:border-violet-400 bg-slate-50 hover:bg-violet-50/30 rounded-xl p-4 text-center cursor-pointer transition-colors"
+              >
+                {uploadingFile ? (
+                  <div className="flex items-center justify-center space-x-2 text-violet-600">
+                    <div className="w-4 h-4 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-sm font-semibold">Uploading to Supabase Storage...</span>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <Upload className="w-5 h-5 text-slate-400 mx-auto" />
+                    <p className="text-xs font-semibold text-slate-600">
+                      Click to upload PDF, Word Document, or Media File
+                    </p>
+                    <p className="text-[10px] text-slate-400">Max size: 50MB (Stored in lms-materials bucket)</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="mt-2">
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Or External Web/Video Link</label>
+              <input 
+                type="url" 
+                value={formData.file_url} 
+                onChange={e => setFormData({ ...formData, file_url: e.target.value })} 
+                placeholder="https://youtube.com/... or https://drive.google.com/..."
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-violet-500 focus:outline-none" 
+              />
+            </div>
           </div>
 
           <div className="pt-4 flex space-x-3">
             <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200">Cancel</button>
-            <button type="submit" className="flex-1 py-2.5 rounded-xl font-bold text-white bg-violet-600 hover:bg-violet-700">Save</button>
+            <button type="submit" disabled={uploadingFile} className="flex-1 py-2.5 rounded-xl font-bold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50">Save</button>
           </div>
         </form>
       </Modal>
@@ -322,12 +419,19 @@ export default function TeacherAssignmentsPage() {
       {/* Submissions Modal */}
       <Modal isOpen={!!selectedAssignmentForGrading} onClose={() => setSelectedAssignmentForGrading(null)} title="Student Submissions" size="xl">
         <div className="p-6">
+          {saveSuccessMsg && (
+            <div className="mb-4 flex items-center space-x-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm font-semibold">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{saveSuccessMsg}</span>
+            </div>
+          )}
           {selectedAssignmentForGrading && (
             <div className="mb-6 pb-6 border-b border-slate-100">
               <h3 className="font-bold text-slate-900 text-xl">{selectedAssignmentForGrading.title}</h3>
               <p className="text-slate-500 text-sm mt-1">Max Score: {selectedAssignmentForGrading.max_score}</p>
             </div>
           )}
+
           
           {loadingSubmissions ? (
             <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div></div>

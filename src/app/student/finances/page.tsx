@@ -5,6 +5,7 @@ import { DollarSign, AlertCircle, CheckCircle2, Clock, Download, CreditCard, Shi
 import { useAuthStore } from '@/store/useAuthStore';
 import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
+import { generatePaymentReceiptPDF } from '@/lib/pdf/receiptPdf';
 
 const PayButton = dynamic(() => import('@/components/PayButton'), { ssr: false });
 const CustomPaymentModal = dynamic(() => import('@/components/CustomPaymentModal'), { ssr: false });
@@ -63,36 +64,33 @@ export default function StudentFinancesPage() {
     setInvoices(prev => prev.map(inv => inv.id === invoiceId ? { ...inv, status: 'PAID' } : inv));
   };
 
-  const downloadReceipt = async (inv: Invoice) => {
-    const { default: jsPDF } = await import('jspdf');
-    const doc = new jsPDF();
-    
-    doc.setFontSize(22);
-    doc.setTextColor(30, 64, 175);
-    doc.text("EduPortal", 14, 20);
-    
-    doc.setFontSize(14);
-    doc.setTextColor(15, 23, 42);
-    doc.text("Payment Receipt", 14, 30);
-    
-    doc.setFontSize(11);
-    doc.setTextColor(100, 116, 139);
-    doc.text(`Receipt ID: ${inv.id.split('-')[0].toUpperCase()}`, 14, 45);
-    doc.text(`Student: ${profile?.first_name} ${profile?.last_name}`, 14, 52);
-    doc.text(`Date of Issue: ${new Date().toLocaleDateString()}`, 14, 59);
-    
-    doc.setTextColor(15, 23, 42);
-    doc.text(`Description: ${inv.description}`, 14, 75);
-    doc.text(`Amount Paid: ₦${inv.amount.toFixed(2)}`, 14, 82);
-    
-    doc.setTextColor(5, 150, 105); // emerald-600
-    doc.text(`Status: PAID`, 14, 89);
+  const downloadReceipt = (inv: Invoice) => {
+    const receiptData = {
+      school: {
+        name: "EduPortal International High School",
+        address: "10 Academic Boulevard, Uyo, Akwa Ibom State",
+        email: "finance@eduportal.sch.ng",
+        phone: "+234 802 345 6789",
+        motto: "Excellence in Character and Learning",
+      },
+      student: {
+        name: `${profile?.first_name || ''} ${profile?.last_name || ''}`,
+        enrollmentNo: profile?.enrollment_number || 'STU-2026-0001',
+        email: profile?.email,
+      },
+      transaction: {
+        receiptNo: `REC-${inv.id.split('-')[0].toUpperCase()}`,
+        reference: `PAY-${inv.id.slice(0, 8).toUpperCase()}-${Date.now().toString().slice(-4)}`,
+        invoiceId: inv.id,
+        date: new Date(inv.created_at || Date.now()).toLocaleDateString('en-US', { dateStyle: 'medium' }),
+        description: inv.description,
+        amount: inv.amount,
+        paymentMethod: 'Paystack (Card / Transfer / USSD)',
+      }
+    };
 
-    doc.setFontSize(9);
-    doc.setTextColor(100, 116, 139);
-    doc.text("Thank you for your payment. This is a system-generated receipt.", 14, 110);
-
-    doc.save(`Receipt_${inv.id.split('-')[0]}.pdf`);
+    const doc = generatePaymentReceiptPDF(receiptData);
+    doc.save(`Receipt_${inv.id.split('-')[0].toUpperCase()}.pdf`);
   };
 
   return (

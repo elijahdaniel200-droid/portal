@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore, UserRole } from '@/store/useAuthStore';
 import { Eye, EyeOff, GraduationCap, Lock, Mail, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 
-export default function LoginPage() {
+function LoginForm() {
   const [loginType, setLoginType] = useState<'student' | 'staff'>('student');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -15,6 +15,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams?.get('redirectTo');
   const { setUser, setRole, setProfile } = useAuthStore();
 
   const handleDemoLogin = (role: string) => {
@@ -58,6 +60,23 @@ export default function LoginPage() {
         if (profileError) throw profileError;
         setProfile(profileData);
         setRole(profileData.role as UserRole);
+
+        // Check if there is a safe return destination matching user's permissions
+        if (redirectTo && redirectTo.startsWith('/')) {
+          const isTargetAdmin = redirectTo.startsWith('/admin');
+          const isTargetTeacher = redirectTo.startsWith('/teacher');
+          const isTargetStudent = redirectTo.startsWith('/student');
+
+          if (
+            (isTargetAdmin && (profileData.role === 'ADMIN' || profileData.role === 'SUPER_ADMIN')) ||
+            (isTargetTeacher && profileData.role === 'TEACHER') ||
+            (isTargetStudent && profileData.role === 'STUDENT')
+          ) {
+            router.push(redirectTo);
+            return;
+          }
+        }
+
         if (profileData.role === 'ADMIN') router.push('/admin');
         else if (profileData.role === 'TEACHER') router.push('/teacher');
         else router.push('/student');
@@ -236,3 +255,16 @@ export default function LoginPage() {
     </div>
   );
 }
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="hero-gradient min-h-screen flex items-center justify-center">
+        <div className="text-white text-sm">Loading EduPortal...</div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
